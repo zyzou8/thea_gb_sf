@@ -4,15 +4,23 @@
 <title>False-positive adjudication</title>
 <style>
  *{box-sizing:border-box}
- body{font:14px/1.5 system-ui,sans-serif;margin:0;background:#14161a;color:#e8eaed;
-      padding-bottom:190px}
+ body{font:14px/1.5 system-ui,sans-serif;margin:0;background:#14161a;color:#e8eaed;padding-bottom:190px}
  header{padding:8px 18px;background:#1d2026;border-bottom:1px solid #2c3039;
         display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:13px}
  .pill{padding:2px 9px;border-radius:99px;font-size:12px;background:#242832;border:1px solid #3a3f4b}
  .done{color:#6bbf7b}.todo{color:#c9a227}
  #bar{height:4px;background:#2c3039}#fill{height:100%;background:#4b8dd6;width:0;transition:width .15s}
- #meta{font-family:ui-monospace,monospace;font-size:12px;color:#9aa0ab;text-align:center;padding:8px}
- #img{display:block;max-width:100%;max-height:calc(100vh - 330px);margin:0 auto;background:#000;border-radius:6px}
+ #wrap{display:flex;gap:18px;align-items:flex-start;padding:10px 18px}
+ #main{flex:1;min-width:0;text-align:center}
+ #meta{font-family:ui-monospace,monospace;font-size:12px;color:#9aa0ab;padding:4px 0 8px}
+ #img{display:block;max-width:100%;max-height:calc(100vh - 340px);margin:0 auto;background:#000;border-radius:6px}
+ aside{width:320px;flex:none;background:#1b1e24;border:1px solid #2c3039;border-radius:10px;padding:16px 18px}
+ aside h3{margin:0 0 10px;font-size:14px;letter-spacing:.3px;color:#cfd4dc}
+ aside hr{border:0;border-top:1px solid #2c3039;margin:14px 0}
+ .key{display:flex;align-items:center;gap:10px;margin:9px 0;font-size:14px}
+ .sw{width:22px;height:14px;border-radius:3px;flex:none}
+ .rule{margin:11px 0;font-size:14px;line-height:1.45}
+ .tag{display:inline-block;min-width:22px;font-weight:800;font-size:15px}
  footer{position:fixed;bottom:0;left:0;right:0;background:#1d2026;border-top:1px solid #2c3039;
         padding:12px 18px 14px;display:flex;flex-direction:column;gap:10px;align-items:center}
  .row{display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;width:100%}
@@ -28,7 +36,8 @@
        border:1px solid #3a3f4b;background:#101216;color:#e8eaed}
  #note:focus{outline:2px solid #4b8dd6;border-color:#4b8dd6}
  kbd{background:#2a2e38;border:1px solid #3a3f4b;border-radius:4px;padding:1px 6px;font-size:12px}
- #cur{text-align:center;font-weight:600;padding-bottom:4px}
+ #cur{text-align:center;font-weight:600;padding-top:6px}
+ @media(max-width:900px){#wrap{flex-direction:column}aside{width:100%}}
 </style>
 
 <header>
@@ -41,17 +50,49 @@
 </header>
 <div id="bar"><div id="fill"></div></div>
 
-<div id="meta"></div>
-<img id="img">
-<div id="cur"></div>
+<div id="wrap">
+  <div id="main">
+    <div id="meta"></div>
+    <img id="img">
+    <div id="cur"></div>
+  </div>
+
+  <aside>
+    <h3>COLOUR KEY</h3>
+    <div class="key"><span class="sw" style="background:#ff2626"></span>
+      <span><b style="color:#ff6b6b">Red</b> — prediction: stacking fault</span></div>
+    <div class="key"><span class="sw" style="background:#3366ff"></span>
+      <span><b style="color:#7d9bff">Blue</b> — human label: stacking fault</span></div>
+    <div class="key"><span class="sw" style="background:#1ae63c"></span>
+      <span><b style="color:#5ee87a">Green</b> — grain boundary</span></div>
+
+    <hr>
+
+    <h3>HOW TO JUDGE</h3>
+    <div class="rule"><span class="tag" style="color:#6bbf7b">A</span>
+      You <b>agree</b> the ML model made a good prediction.</div>
+    <div class="rule"><span class="tag" style="color:#e06c6c">B</span>
+      The prediction is <b>exactly wrong</b>.</div>
+    <div class="rule"><span class="tag" style="color:#d4b43c">C</span>
+      <b>Not sure</b> — and please type why in the comment box.</div>
+
+    <hr>
+    <div style="font-size:12.5px;color:#9aa0ab">
+      Keys <kbd>a</kbd> <kbd>b</kbd> <kbd>c</kbd>, arrows to move.
+      Press <kbd>Enter</kbd> to leave the comment box before using keys.<br><br>
+      Progress saves in this browser as you go.
+      <b style="color:#cfd4dc">When finished, click “Download CSV” and send the file back.</b>
+    </div>
+  </aside>
+</div>
 
 <footer>
   <div class="row">
-    <input id="note" placeholder="Comment (optional) — e.g. bend contour, grain boundary, too faint to call…"
+    <input id="note" placeholder="Comments (especially for C) — e.g. bend contour, too faint to call, overlaps a boundary…"
            oninput="C[M[i].id]=this.value;save()">
   </div>
   <div class="row">
-    <button class="big A" id="bA" onclick="mark('A')">A · RIGHT <kbd>a</kbd></button>
+    <button class="big A" id="bA" onclick="mark('A')">A · GOOD <kbd>a</kbd></button>
     <button class="big B" id="bB" onclick="mark('B')">B · WRONG <kbd>b</kbd></button>
     <button class="big C" id="bC" onclick="mark('C')">C · NOT SURE <kbd>c</kbd></button>
     <button class="nav" onclick="go(-1)">← prev</button>
@@ -97,7 +138,7 @@ function dump(){
   a.download='fp_review_labels.csv'; a.click();
 }
 addEventListener('keydown',e=>{
-  if(e.target.id==='note'){ if(e.key==='Enter')e.target.blur(); return; }  // don't hijack typing
+  if(e.target.id==='note'){ if(e.key==='Enter')e.target.blur(); return; }
   const k=e.key.toLowerCase();
   if(k=='a'||k=='b'||k=='c')mark(k.toUpperCase());
   else if(e.key=='ArrowRight')go(1); else if(e.key=='ArrowLeft')go(-1);
