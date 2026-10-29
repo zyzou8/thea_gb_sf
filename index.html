@@ -1,0 +1,84 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>False-positive adjudication</title>
+<style>
+ body{font:14px/1.5 system-ui,sans-serif;margin:0;background:#14161a;color:#e8eaed}
+ header{padding:10px 18px;background:#1d2026;border-bottom:1px solid #2c3039;position:sticky;top:0;
+        display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+ #img{display:block;max-width:100%;margin:14px auto;background:#000;border-radius:6px}
+ .btn{padding:9px 16px;border:1px solid #3a3f4b;background:#242832;color:#e8eaed;border-radius:6px;
+      cursor:pointer;font-size:14px}
+ .btn:hover{background:#2e3340}
+ .A{border-color:#2e7d4f}.B{border-color:#9b3b3b}.C{border-color:#8a7320}
+ .pill{padding:2px 9px;border-radius:99px;font-size:12px;background:#242832;border:1px solid #3a3f4b}
+ .done{color:#6bbf7b}.todo{color:#c9a227}
+ #meta{font-family:ui-monospace,monospace;font-size:12px;color:#9aa0ab}
+ kbd{background:#2a2e38;border:1px solid #3a3f4b;border-radius:4px;padding:1px 6px;font-size:12px}
+ #bar{height:4px;background:#2c3039}#fill{height:100%;background:#4b8dd6;width:0}
+ .lbl{font-weight:600}
+</style>
+<header>
+  <strong>FP adjudication</strong>
+  <span class="pill" id="pos">0 / 0</span>
+  <span class="pill"><span class="done" id="ndone">0</span> labelled · <span class="todo" id="ntodo">0</span> left</span>
+  <button class="btn A" onclick="mark('A')">A · prediction RIGHT <kbd>a</kbd></button>
+  <button class="btn B" onclick="mark('B')">B · prediction WRONG <kbd>b</kbd></button>
+  <button class="btn C" onclick="mark('C')">C · not sure <kbd>c</kbd></button>
+  <button class="btn" onclick="go(-1)"><kbd>←</kbd></button>
+  <button class="btn" onclick="go(1)"><kbd>→</kbd></button>
+  <button class="btn" onclick="dump()">Download CSV</button>
+  <button class="btn" onclick="if(confirm('Clear all labels?')){L={};save();render()}">Reset</button>
+</header>
+<div id="bar"><div id="fill"></div></div>
+<div style="text-align:center">
+  <div id="meta"></div>
+  <div id="cur" class="lbl"></div>
+  <img id="img">
+  <p style="color:#9aa0ab;max-width:760px;margin:6px auto 30px">
+    Left: raw micrograph. Right: prediction — <span style="color:#ff5555">red</span> = the component
+    being judged, <span style="color:#6688ff">blue</span> = existing SF annotation,
+    <span style="color:#44dd66">green</span> = predicted grain boundary.<br>
+    <b>A</b> = this really is a stacking fault the annotation missed &nbsp;·&nbsp;
+    <b>B</b> = not a stacking fault &nbsp;·&nbsp; <b>C</b> = genuinely ambiguous.
+    Labels save automatically in this browser.
+  </p>
+</div>
+<script>
+let M=[],i=0,L={};
+const K='fp_review_labels';
+fetch('manifest.json').then(r=>r.json()).then(d=>{
+  M=d; L=JSON.parse(localStorage.getItem(K)||'{}');
+  i=M.findIndex(m=>!(m.id in L)); if(i<0)i=0; render();
+}).catch(e=>{document.getElementById('meta').textContent=
+  'Could not load manifest.json — serve this folder over http (python -m http.server) or open it from the same directory.';});
+function save(){localStorage.setItem(K,JSON.stringify(L))}
+function render(){
+  if(!M.length)return; const m=M[i];
+  document.getElementById('img').src=m.file;
+  document.getElementById('pos').textContent=(i+1)+' / '+M.length;
+  const n=Object.keys(L).length;
+  document.getElementById('ndone').textContent=n;
+  document.getElementById('ntodo').textContent=M.length-n;
+  document.getElementById('fill').style.width=(100*n/M.length)+'%';
+  document.getElementById('meta').textContent=
+    `image ${m.image} · fold ${m.fold} · ${m.n_px} px · ${m.cls} · overlap ${m.overlap} · in_ext ${m.in_ext} · (y${m.cy},x${m.cx})`;
+  const v=L[m.id];
+  document.getElementById('cur').innerHTML = v
+    ? `current label: <span style="color:${v=='A'?'#6bbf7b':v=='B'?'#e06c6c':'#d4b43c'}">${v}</span>`
+    : '<span style="color:#9aa0ab">unlabelled</span>';
+}
+function mark(v){ if(!M.length)return; L[M[i].id]=v; save(); if(i<M.length-1)i++; render(); }
+function go(d){ i=Math.min(M.length-1,Math.max(0,i+d)); render(); }
+function dump(){
+  const rows=[['id','file','image','fold','n_px','overlap','cls','in_ext','cy','cx','label']];
+  M.forEach(m=>rows.push([m.id,m.file,m.image,m.fold,m.n_px,m.overlap,m.cls,m.in_ext,m.cy,m.cx,L[m.id]||'']));
+  const b=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(b);
+  a.download='fp_review_labels.csv'; a.click();
+}
+addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();
+  if(k=='a'||k=='b'||k=='c')mark(k.toUpperCase());
+  else if(e.key=='ArrowRight')go(1); else if(e.key=='ArrowLeft')go(-1);
+});
+</script>
